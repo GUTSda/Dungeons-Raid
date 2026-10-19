@@ -4,7 +4,131 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Dungeon Set Builder</title>
-<link rel="stylesheet" href="style.css">
+<style>
+:root{--bg:#161814;--panel:#262922;--panel2:#1e211b;--edge:#4a5043;--hi:#6b7263;--grass:#7bbf45;--gold:#e8b94a;--red:#d1503f;--txt:#e6e4d8;--dim:#9a9a88;--blue:#5aa0d8}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;position:fixed;touch-action:none;font-family:"Trebuchet MS","Segoe UI",sans-serif;color:var(--txt)}
+#gameWrapper{position:absolute;inset:0;background:#000;overflow:hidden}
+#gameScaler{position:absolute;top:0;left:0;width:960px;height:540px;transform-origin:top left;background:var(--bg)}
+#cv{position:absolute;inset:0;display:none}
+#ui{position:absolute;inset:0;display:flex;flex-direction:column}
+#ui.play{pointer-events:none}#ui.play button{pointer-events:auto}
+.top{display:flex;gap:16px;align-items:center;padding:8px 16px;background:var(--panel2);border-bottom:3px solid var(--edge);font-size:14px}
+.top b{font-size:16px;color:var(--grass)}.gold{color:var(--gold);font-family:Consolas,monospace}
+.body{flex:1;overflow:auto;padding:14px 16px;touch-action:pan-y}
+h2{font-size:20px;margin-bottom:10px;color:var(--gold)}
+p.dim,.dim{color:var(--dim);font-size:13px}
+.grid{display:grid;gap:10px}.g3{grid-template-columns:repeat(3,1fr)}.g5{grid-template-columns:repeat(5,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.card{background:var(--panel);border:3px solid var(--edge);border-top-color:var(--hi);border-left-color:var(--hi);padding:10px;font-size:13px;line-height:1.45}
+.card h3{font-size:15px;margin-bottom:4px}
+.card.sel{border-color:var(--grass)}
+button{font:inherit;font-size:13px;font-weight:bold;color:var(--txt);background:#3d4435;border:3px solid var(--edge);border-top-color:var(--hi);border-left-color:var(--hi);padding:6px 12px;cursor:pointer;margin:2px}
+button:hover:not(:disabled){background:#4d5a41}button:active:not(:disabled){transform:translateY(1px)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.pri{background:#4d7a2c;border-top-color:#8fd25a;border-left-color:#8fd25a}
+button.dng{background:#7a2f27}
+.tabs{display:flex;flex-wrap:wrap;margin-bottom:10px}.tabs button.on{background:#4d7a2c}
+.row{display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid #353a2f;font-size:13px}
+.row .nm{flex:1}.row .no{color:var(--red);font-size:12px}
+.common{color:#ccc}.rare{color:var(--blue)}.epic{color:#b57edc}.legendary{color:var(--gold)}.unique{color:#ff8a4a}
+.bar{height:12px;background:#111;border:2px solid var(--edge);position:relative}.bar>i{position:absolute;inset:0 auto 0 0;background:var(--grass)}
+.bar.hp>i{background:var(--red)}.bar.bossbar>i{background:#b13fd1}
+.chk.ok{color:var(--grass)}.chk.no{color:var(--red)}
+.plot{height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:22px}
+.hud{position:absolute;inset:0;pointer-events:none}
+.hud .l{position:absolute;left:12px;top:10px;width:260px;font-size:12px;text-shadow:0 1px 2px #000}
+.hud .r{position:absolute;right:12px;top:10px;text-align:right;font-size:12px;text-shadow:0 1px 2px #000}
+.hud .bb{position:absolute;left:50%;top:10px;transform:translateX(-50%);width:300px;text-align:center;font-size:13px}
+.hud .btns{position:absolute;right:12px;bottom:12px;display:flex;gap:6px}
+.hud .btns button{width:74px;height:56px;font-size:12px;pointer-events:auto}
+.hud .msg{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);font-size:14px;text-shadow:0 1px 3px #000;color:var(--gold)}
+.hud .help{position:absolute;left:12px;bottom:12px;font-size:11px;color:var(--dim)}
+.modal{position:absolute;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:50;pointer-events:auto}
+.modal .card{width:560px;max-height:480px;overflow:auto;font-size:14px}
+#toast{position:absolute;left:50%;top:56px;transform:translateX(-50%);background:#000c;border:2px solid var(--gold);padding:6px 14px;font-size:13px;display:none;z-index:99}
+
+/* ===== Role select (fullscreen) ===== */
+.rs{position:absolute;inset:0;overflow:hidden;background:#000}
+.rs .stage{position:absolute;inset:0;display:flex}
+.rs .p{flex:1;position:relative;overflow:hidden;cursor:pointer;background:color-mix(in srgb,var(--c) 45%,#000);
+  border-right:1px solid #000;transition:flex .45s cubic-bezier(.2,.8,.2,1),filter .35s,box-shadow .35s}
+.rs .p:last-child{border-right:0}
+.rs .bg,.rs .ch{position:absolute;inset:0;background-repeat:no-repeat;background-size:auto 100%;background-position:center bottom;transition:filter .35s,transform .45s cubic-bezier(.2,.8,.2,1)}
+.rs .bg{filter:brightness(.55) saturate(.9)}
+.rs .ch{filter:brightness(.8);transform-origin:50% 100%}
+.rs .nm{position:absolute;top:22px;left:0;right:0;text-align:center;font-size:28px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#fff;white-space:nowrap;
+  text-shadow:0 2px 8px #000,0 0 14px #000a;transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.rs .info{position:absolute;left:12px;right:12px;bottom:14px;transform:translateY(12px);opacity:0;transition:opacity .3s,transform .4s;text-align:center;pointer-events:none;
+  background:rgba(0,0,0,.68);border:2px solid var(--c);padding:10px 10px 8px}
+.rs .pl{font-size:13px;line-height:1.45;color:#fff;margin-bottom:8px}
+.rs .st{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:12px;color:#ffffffb0;text-align:left}
+.rs .st b{color:#fff;float:right}
+.rs.has-insp .p:not(.insp){filter:brightness(.3) saturate(.5)}
+.rs .p.insp{flex:2.1;z-index:2;box-shadow:inset 0 0 0 4px #fff,0 0 50px 8px var(--c)}
+.rs .p.insp .bg{filter:brightness(.85)}
+.rs .p.insp .ch{filter:brightness(1.05) drop-shadow(0 0 16px var(--c));transform:scale(1.05)}
+.rs .p.insp .nm{transform:scale(1.3)}
+.rs .p.insp .info{opacity:1;transform:translateY(0)}
+.rs.picking{pointer-events:none}
+#fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:200}
+#pickTxt{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-size:44px;font-weight:bold;letter-spacing:10px;color:#fff;
+  text-shadow:0 0 24px #fff8,0 2px 6px #000;opacity:0;pointer-events:none;z-index:210;transition:opacity .5s,letter-spacing 1.4s}
+#pickTxt.on{opacity:1;letter-spacing:16px}
+
+/* ===== Lobby HUD ===== */
+.lhud{position:absolute;inset:0;pointer-events:none}
+.lbtns-l{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;pointer-events:none}
+.lbtns-r{position:absolute;right:12px;bottom:12px}
+.lbtns-r button{width:74px;height:56px}
+.lhelp{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:11px;color:#fffc;text-shadow:0 1px 3px #000;white-space:nowrap}
+.lbtns-l{bottom:26px}
+/* ===== Dialog visual novel ===== */
+.vn{position:absolute;inset:0;z-index:40;pointer-events:auto;background:rgba(5,6,4,.6);cursor:pointer;overflow:hidden}
+.vn-portrait{position:absolute;left:70px;bottom:150px;font-size:190px;line-height:1;filter:drop-shadow(0 0 30px var(--c));animation:vnIn .35s ease-out}
+.vn-stack{position:absolute;left:24px;right:24px;bottom:18px;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+.vn-box{position:relative;width:100%;min-height:118px;background:rgba(16,18,13,.96);border:3px solid var(--edge);border-top-color:var(--c);padding:22px 30px 14px}
+.vn-name{position:absolute;left:22px;top:-18px;background:var(--c);color:#111;font-weight:bold;font-size:15px;padding:3px 16px;border:3px solid #0008}
+.vn-name small{font-weight:normal;opacity:.75;margin-left:8px;font-size:12px}
+.vn-text{font-size:17px;line-height:1.55;white-space:pre-line;min-height:52px}
+.vn-next{position:absolute;right:18px;bottom:8px;color:var(--c);visibility:hidden;animation:vnBlink 1s infinite}
+.vn-choices{display:flex;flex-direction:column;gap:8px;width:430px;max-width:100%}
+.vn-choices.hid{visibility:hidden}
+.vn-choices button{text-align:left;font-size:15px;padding:10px 14px;margin:0;background:rgba(30,33,27,.97);border-color:var(--edge);border-left:6px solid var(--c)}
+.vn-choices button:hover{background:#3d4a33}
+@keyframes vnIn{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:none}}
+@keyframes vnBlink{50%{opacity:.2}}
+
+#gameWrapper{user-select:none;-webkit-user-select:none}
+.gear{position:absolute;right:12px;top:54px;width:40px;height:40px;padding:0;font-size:20px;line-height:1;margin:0}
+.set-in{flex:1;font:inherit;font-size:14px;color:var(--txt);background:#111;border:3px solid var(--edge);padding:6px 10px;outline:none;text-transform:uppercase;user-select:text;-webkit-user-select:text}
+.set-in:focus{border-color:var(--grass)}
+@media (hover:hover) and (pointer:fine){#btnAtk{display:none}}
+
+/* ===== baris tombol kedua (ramuan, spell) + dash ===== */
+.hud .btns2{position:absolute;right:12px;bottom:76px;display:flex;gap:6px}
+.hud .btns2 button{width:74px;height:44px;font-size:12px;pointer-events:auto}
+.hud .help{max-width:440px;line-height:1.35}
+
+/* ===== Aspect (Escort Of Heroes): tulisan berasap ===== */
+.aspect{position:relative;display:inline-block;font-weight:bold;letter-spacing:2px;color:var(--c);padding:2px 6px}
+.aspect-t{position:relative;z-index:2;-webkit-text-stroke:1px var(--g);text-shadow:0 0 8px var(--g),0 0 20px var(--c);animation:aspWave 2.6s ease-in-out infinite}
+.aspect i{position:absolute;left:var(--x);bottom:35%;width:20px;height:20px;border-radius:50%;pointer-events:none;z-index:1;
+  background:radial-gradient(circle,var(--c) 0%,transparent 70%);filter:blur(5px);opacity:0;animation:aspSmoke 2.6s ease-out infinite;animation-delay:var(--d)}
+.aspect.big{font-size:34px;letter-spacing:4px;padding:8px 14px}
+.aspect.big i{width:34px;height:34px;filter:blur(8px)}
+@keyframes aspSmoke{0%{opacity:0;transform:translate(0,8px) scale(.5)}20%{opacity:.75}100%{opacity:0;transform:translate(var(--dx),-46px) scale(2.4)}}
+@keyframes aspWave{0%,100%{filter:blur(0)}50%{filter:blur(.7px);transform:translateY(-1px)}}
+#asp .aspect{font-size:13px}
+
+/* ===== Cinematic: HUD diredupkan saat letterbox aktif (class .cine di-set oleh cinematic.js) ===== */
+.hud .l,.hud .r,.hud .bb,.hud .msg{transition:opacity .3s}
+#gameScaler.cine .hud .l,#gameScaler.cine .hud .r,#gameScaler.cine .hud .bb,#gameScaler.cine .hud .msg,#gameScaler.cine #dmgfx{opacity:.15}
+
+/* ===== baris tombol skill Unique (Z X C V) ===== */
+.hud .btns3{position:absolute;right:12px;bottom:124px;display:flex;gap:6px}
+.hud .btns3 button{width:74px;height:62px;font-size:11px;line-height:1.15;pointer-events:auto}
+
+</style>
 </head>
 <body>
 <div id="gameWrapper">
@@ -14,10 +138,6 @@
     <div id="toast"></div>
   </div>
 </div>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/firebase.js"></script>
 <script src="js/state.js"></script>
 <script src="js/roles.js"></script>
 <script src="js/items.js"></script>
@@ -35,6 +155,20 @@
 <script src="js/codes.js"></script>
 <script src="js/game.js"></script>
 <script src="js/mobile.js"></script>
+
+<!-- LOGIN SYSTEM (module: harus lewat server http/https, bukan file://) -->
 <script type="module" src="js/auth.js"></script>
+<script>
+  /* penjaga: kalau auth.js gagal dimuat, tampilkan pesan jelas di layar */
+  setTimeout(function () {
+    if (window.__authReady) return;
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#a02020;color:#fff;font:14px sans-serif;padding:10px;text-align:center';
+    d.textContent = location.protocol === 'file:'
+      ? 'auth.js gagal: game dibuka dari file://. Jalankan lewat server (localhost / hosting).'
+      : 'auth.js gagal dimuat. Buka F12 > Console / Network, cek path js/auth.js atau import Firebase yang 404.';
+    document.body.appendChild(d);
+  }, 4000);
+</script>
 </body>
 </html>
